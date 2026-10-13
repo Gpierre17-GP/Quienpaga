@@ -54,6 +54,7 @@ button{font:inherit;font-size:15px;font-weight:600;border:0;border-radius:12px;p
 .pill{color:#fff;font-weight:600;font-size:13px;padding:4px 10px;border-radius:20px;white-space:nowrap}
 .pay{background:#1B1340;color:#fff;border-radius:12px;padding:11px 14px;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
 .pay b{color:#FFD23F;white-space:nowrap}
+.pay small{display:block;font-size:12px;font-weight:400;color:#B9C6E8}
 .acts{display:flex;gap:8px;padding:16px 14px 0}
 .acts button{flex:1}
 .rst{display:block;margin:18px auto 0;background:none;color:#A8360B;text-decoration:underline;font-weight:400;font-size:13px}
@@ -108,6 +109,12 @@ button{font:inherit;font-size:15px;font-weight:600;border:0;border-radius:12px;p
 
 <section>
   <h2>Para saldar cuentas</h2>
+  <div class="seg" id="smodes">
+    <button data-s="pair">Por pares</button>
+    <button data-s="exp">Por gasto</button>
+    <button data-s="min">Mínimo</button>
+  </div>
+  <p class="mut" id="shint" style="margin:0 0 8px"></p>
   <div id="pays"></div>
 </section>
 
@@ -127,6 +134,7 @@ var edit = null, mode = 'equal', sel = new Set(), ex = {};
 try { var raw = localStorage.getItem(K); if (raw) S = JSON.parse(raw); } catch (e) {}
 if (!S.people || !S.expenses) S = { people: [], expenses: [] };
 if (typeof S.group !== 'string') S.group = '';
+if (['min', 'pair', 'exp'].indexOf(S.settle) < 0) S.settle = 'pair';
 S.people.forEach(function (p) { sel.add(p.id); });
 
 function save() { try { localStorage.setItem(K, JSON.stringify(S)); } catch (e) {} }
@@ -166,6 +174,38 @@ function balances() {
     for (var id in s) b[id] -= s[id];
   });
   return b;
+}
+function ix(id) { return S.people.findIndex(function (p) { return p.id === id; }); }
+// Tres formas de saldar: 'min' (pocas transferencias), 'pair' (se restan las deudas
+// entre cada par de personas) y 'exp' (cada uno le paga a quien pagó cada gasto).
+function transfers(mode) {
+  var out = [];
+  if (mode === 'exp') {
+    S.expenses.forEach(function (e) {
+      var s = shares(e);
+      S.people.forEach(function (p) {
+        if (p.id !== e.payer && s[p.id]) out.push([p.id, e.payer, s[p.id], e.desc]);
+      });
+    });
+    return out;
+  }
+  if (mode === 'pair') {
+    var o = {};
+    S.expenses.forEach(function (e) {
+      var s = shares(e);
+      for (var id in s) { if (id === e.payer) continue; var k = id + '>' + e.payer; o[k] = (o[k] || 0) + s[id]; }
+    });
+    var ids = S.people.map(function (p) { return p.id; });
+    for (var i = 0; i < ids.length; i++) {
+      for (var j = i + 1; j < ids.length; j++) {
+        var n = (o[ids[i] + '>' + ids[j]] || 0) - (o[ids[j] + '>' + ids[i]] || 0);
+        if (n > 0) out.push([ids[i], ids[j], n]); else if (n < 0) out.push([ids[j], ids[i], -n]);
+      }
+    }
+    out.sort(function (x, y) { return ix(x[0]) - ix(y[0]) || ix(x[1]) - ix(y[1]); });
+    return out;
+  }
+  return settle(balances());
 }
 // Liquidación: empareja al que más debe con al que más le deben.
 function settle(b) {
@@ -225,9 +265,12 @@ function render() {
       '<span class="pill" style="background:' + (v > 0 ? '#00B88A' : v < 0 ? '#FF4D5E' : '#8A94A6') + '">' + signed(v) + '</span></div>';
   }).join('') || '<span class="mut">Sin personas.</span>';
 
-  var st = settle(b);
+  var st = transfers(S.settle);
+  var HINTS = { min: 'Pocas transferencias: puede que pagues a alguien distinto de quien pagó tu parte.', pair: 'Cada par de personas resta lo que se deben entre sí y paga solo la diferencia.', exp: 'Cada uno le paga a quien pagó cada gasto, tal cual.' };
+  Array.prototype.forEach.call($('smodes').children, function (bt) { bt.className = bt.getAttribute('data-s') === S.settle ? 'on' : ''; });
+  $('shint').textContent = HINTS[S.settle];
   $('pays').innerHTML = st.length ? st.map(function (x) {
-    return '<div class="pay"><span>' + esc(nm(x[0])) + ' le paga a ' + esc(nm(x[1])) + '</span><b>' + money(x[2]) + '</b></div>';
+    return '<div class="pay"><span>' + esc(nm(x[0])) + ' le paga a ' + esc(nm(x[1])) + (x[3] ? '<small>' + esc(x[3]) + '</small>' : '') + '</span><b>' + money(x[2]) + '</b></div>';
   }).join('') : '<div class="c mut">' + (S.expenses.length ? 'Todo saldado.' : 'Agrega gastos para ver quién paga a quién.') + '</div>';
   save();
 }
@@ -301,13 +344,13 @@ function startEdit(id) {
 }
 
 function summary() {
-  var b = balances(), st = settle(b);
+  var st = transfers(S.settle);
   var t = S.expenses.reduce(function (a, e) { return a + e.amount; }, 0);
   var L = ['*' + (S.group || 'Resumen de gastos') + '*', 'Total: ' + money(t), ''];
   S.expenses.forEach(function (e) { L.push('- ' + e.desc + ': ' + money(e.amount) + ' (pagó ' + nm(e.payer) + ')'); });
   L.push('', '*Para saldar cuentas*');
   if (!st.length) L.push('Todo saldado.');
-  st.forEach(function (x) { L.push('- ' + nm(x[0]) + ' le paga ' + money(x[2]) + ' a ' + nm(x[1])); });
+  st.forEach(function (x) { L.push('- ' + nm(x[0]) + ' le paga ' + money(x[2]) + ' a ' + nm(x[1]) + (x[3] ? ' (' + x[3] + ')' : '')); });
   return L.join('\n');
 }
 function copyText(txt) {
@@ -324,6 +367,7 @@ function copyText(txt) {
 
 $('gn').value = S.group;
 $('gn').oninput = function () { S.group = $('gn').value.trim(); save(); };
+$('smodes').onclick = function (e) { var m = e.target.getAttribute('data-s'); if (m) { S.settle = m; render(); } };
 $('addp').onclick = addPerson;
 $('pn').onkeydown = function (e) { if (e.key === 'Enter') addPerson(); };
 $('chips').onclick = function (e) { var id = e.target.getAttribute('data-del'); if (id) removePerson(id); };
@@ -346,7 +390,7 @@ $('exps').onclick = function (e) {
 $('copy').onclick = function () { copyText(summary()); };
 $('wa').onclick = function () { window.open('https://wa.me/?text=' + encodeURIComponent(summary()), '_blank'); };
 $('reset').onclick = function () {
-  if (confirm('¿Borrar personas y gastos? No se puede deshacer.')) { S = { people: [], expenses: [], group: '' }; $('gn').value = ''; resetForm(); render(); }
+  if (confirm('¿Borrar personas y gastos? No se puede deshacer.')) { S = { people: [], expenses: [], group: '', settle: S.settle }; $('gn').value = ''; resetForm(); render(); }
 };
 
 render();
