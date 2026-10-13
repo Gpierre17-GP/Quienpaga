@@ -1,0 +1,19 @@
+name: Limpiar Deployments Antiguos
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  deployments: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Limpiar registros antiguos
+        uses: okteto/delete-deployment@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          all: true
