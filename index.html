@@ -57,6 +57,39 @@ button{font:inherit;font-size:15px;font-weight:600;border:0;border-radius:12px;p
 .pay small{display:block;font-size:12px;font-weight:400;color:#B9C6E8}
 .acts{display:flex;gap:8px;padding:16px 14px 0}
 .acts button{flex:1}
+.pc{background:#fff;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.pc.open{border:2px solid #DD4B14;padding:8px 10px 12px}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer}
+.ph .l{display:flex;align-items:center;gap:10px;min-width:0}
+.ph .l .av{margin:0;flex-shrink:0}
+.ph .r{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ph p{margin:0}
+.ph .pn{font-size:14px;font-weight:600}
+.ph .ps{font-size:12px;color:#5B6B85}
+.pd{border-top:1px solid #D8E3F0;margin-top:10px;padding-top:4px}
+.pd h4{margin:10px 0 6px;font-size:12px;font-weight:600}
+.ln{display:flex;justify-content:space-between;gap:8px;font-size:14px;padding:3px 0}
+.ln small{color:#5B6B85}
+.net{border-radius:8px;padding:8px 10px;margin-top:10px;display:flex;justify-content:space-between;font-size:13px;font-weight:600}
+.msg{background:#E7F8D9;border-radius:10px;padding:10px 12px;margin-top:12px;font-size:12px;line-height:1.55;color:#1E3A12;white-space:pre-wrap}
+.msg small{display:block;font-size:11px;color:#46633A;margin-bottom:4px}
+.pb{display:flex;gap:8px;margin-top:12px}
+.pb button{flex:1}
+details{border:1.5px dashed #8FB4DB;border-radius:12px;padding:10px 12px;margin-top:4px}
+summary{cursor:pointer;font-size:13px;color:#3A4A66;list-style:none}
+summary::-webkit-details-marker{display:none}
+details[open] summary{margin-bottom:10px}
+details .acts{padding:10px 0 0}
+.sw{display:flex;align-items:center;gap:10px;margin:0 0 4px;font-size:14px;font-weight:600;cursor:pointer}
+.sw input{position:absolute;opacity:0;width:1px;height:1px}
+.trk{width:42px;height:24px;border-radius:12px;background:#9FB4CC;position:relative;flex-shrink:0}
+.trk::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+.sw input:checked + .trk{background:#00B88A}
+.sw input:checked + .trk::after{left:21px}
+.sw input:focus-visible + .trk{outline:3px solid #FF3D8B;outline-offset:2px}
+.ln.tap{cursor:pointer}
+.dt{background:#F3F7FC;border-radius:8px;padding:6px 10px;margin:2px 0 6px;font-size:13px;color:#3A4A66}
+.dt div{padding:2px 0}
 .rst{display:block;margin:18px auto 0;background:none;color:#A8360B;text-decoration:underline;font-weight:400;font-size:13px}
 </style>
 </head>
@@ -115,13 +148,21 @@ button{font:inherit;font-size:15px;font-weight:600;border:0;border-radius:12px;p
     <button data-s="min">Mínimo</button>
   </div>
   <p class="mut" id="shint" style="margin:0 0 8px"></p>
-  <div id="pays"></div>
+  <h2 style="margin-top:6px">Resumen por persona</h2>
+  <p class="mut" style="margin:0 0 8px">Toca a alguien para ver y enviar solo lo suyo.</p>
+  <label class="sw" id="detWrap"><input type="checkbox" id="detTog"><span class="trk"></span><span>Mensaje detallado</span></label>
+  <p class="mut" id="detHint" style="margin:0 0 8px"></p>
+  <div id="pcards"></div>
+  <details id="full">
+    <summary>Ver lista completa (<span id="ncount">0</span> transferencias)</summary>
+    <div id="pays"></div>
+    <div class="acts">
+      <button id="copy">Copiar todo</button>
+      <button id="wa" class="g">WhatsApp todo</button>
+    </div>
+  </details>
 </section>
 
-<div class="acts">
-  <button id="copy">Copiar resumen</button>
-  <button id="wa" class="g">WhatsApp</button>
-</div>
 <button id="reset" class="rst">Borrar todo y empezar de nuevo</button>
 </div>
 
@@ -129,12 +170,13 @@ button{font:inherit;font-size:15px;font-weight:600;border:0;border-radius:12px;p
 var K = 'dividir-gastos-v1';
 var COLORS = ['#DD4B14', '#FF3D8B', '#0E9AA7', '#00B88A', '#2D8CFF', '#E0245E'];
 var S = { people: [], expenses: [] };
-var edit = null, mode = 'equal', sel = new Set(), ex = {};
+var edit = null, mode = 'equal', sel = new Set(), ex = {}, openId = null, openLine = null;
 
 try { var raw = localStorage.getItem(K); if (raw) S = JSON.parse(raw); } catch (e) {}
 if (!S.people || !S.expenses) S = { people: [], expenses: [] };
 if (typeof S.group !== 'string') S.group = '';
 if (['min', 'pair', 'exp'].indexOf(S.settle) < 0) S.settle = 'pair';
+if (typeof S.detail !== 'boolean') S.detail = false;
 S.people.forEach(function (p) { sel.add(p.id); });
 
 function save() { try { localStorage.setItem(K, JSON.stringify(S)); } catch (e) {} }
@@ -175,6 +217,24 @@ function balances() {
   });
   return b;
 }
+function names(l) {
+  var n = [];
+  l.forEach(function (y) { if (n.indexOf(y.d) < 0) n.push(y.d); });
+  return n.length <= 2 ? n.join(', ') : n[0] + ', ' + n[1] + ' y ' + (n.length - 2) + ' más';
+}
+function why(p, m) { return names(p) + (m.length ? ', menos ' + names(m) : ''); }
+function detailRows(x, payer) {
+  var r = [];
+  x[4].p.forEach(function (y) { r.push(y.d + ': ' + (payer ? 'le debes ' : 'te debe ') + money(y.a)); });
+  x[4].m.forEach(function (y) { r.push(y.d + ': ' + (payer ? 'te debe ' : 'le debes ') + money(y.a)); });
+  return r;
+}
+function addLine(L, x, who, payer, det) {
+  if (det && x[4]) {
+    L.push('- ' + money(x[2]) + ' ' + who + ':');
+    detailRows(x, payer).forEach(function (r) { L.push('  ' + r); });
+  } else L.push('- ' + money(x[2]) + ' ' + who + (x[3] ? ' (' + x[3] + ')' : ''));
+}
 function ix(id) { return S.people.findIndex(function (p) { return p.id === id; }); }
 // Tres formas de saldar: 'min' (pocas transferencias), 'pair' (se restan las deudas
 // entre cada par de personas) y 'exp' (cada uno le paga a quien pagó cada gasto).
@@ -193,13 +253,19 @@ function transfers(mode) {
     var o = {};
     S.expenses.forEach(function (e) {
       var s = shares(e);
-      for (var id in s) { if (id === e.payer) continue; var k = id + '>' + e.payer; o[k] = (o[k] || 0) + s[id]; }
+      for (var id in s) {
+        if (id === e.payer) continue;
+        var k = id + '>' + e.payer;
+        (o[k] = o[k] || []).push({ d: e.desc, a: s[id] });
+      }
     });
+    var tot = function (l) { return l.reduce(function (t, y) { return t + y.a; }, 0); };
     var ids = S.people.map(function (p) { return p.id; });
     for (var i = 0; i < ids.length; i++) {
       for (var j = i + 1; j < ids.length; j++) {
-        var n = (o[ids[i] + '>' + ids[j]] || 0) - (o[ids[j] + '>' + ids[i]] || 0);
-        if (n > 0) out.push([ids[i], ids[j], n]); else if (n < 0) out.push([ids[j], ids[i], -n]);
+        var ab = o[ids[i] + '>' + ids[j]] || [], ba = o[ids[j] + '>' + ids[i]] || [], n = tot(ab) - tot(ba);
+        if (n > 0) out.push([ids[i], ids[j], n, why(ab, ba), { p: ab, m: ba }]);
+        else if (n < 0) out.push([ids[j], ids[i], -n, why(ba, ab), { p: ba, m: ab }]);
       }
     }
     out.sort(function (x, y) { return ix(x[0]) - ix(y[0]) || ix(x[1]) - ix(y[1]); });
@@ -224,6 +290,71 @@ function settle(b) {
     if (!c[j][1]) j++;
   }
   return out;
+}
+
+
+var DOWN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B6B85" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+var UP = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5B6B85" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>';
+
+// Resumen por persona: lo que cada uno paga y recibe según las transferencias del modo elegido.
+function pinfo(id, st) {
+  var pay = [], rec = [], pt = 0, rt = 0;
+  st.forEach(function (x) {
+    if (x[0] === id) { pay.push(x); pt += x[2]; }
+    if (x[1] === id) { rec.push(x); rt += x[2]; }
+  });
+  return { pay: pay, rec: rec, net: rt - pt };
+}
+function cnt(list, k) { var u = {}; list.forEach(function (x) { u[x[k]] = 1; }); return Object.keys(u).length; }
+function plural(n) { return n + (n === 1 ? ' persona' : ' personas'); }
+function personMsg(id, st) {
+  var f = pinfo(id, st), det = S.detail && S.settle === 'pair';
+  var L = ['Hola ' + nm(id) + ', tu resumen de ' + (S.group ? '*' + S.group + '*' : 'los gastos del grupo') + ':'];
+  if (!f.pay.length && !f.rec.length) { L.push('No tienes pagos pendientes.'); return L.join('\n'); }
+  if (f.pay.length) {
+    L.push('Pagas:');
+    f.pay.forEach(function (x) { addLine(L, x, 'a ' + nm(x[1]), true, det); });
+  }
+  if (f.rec.length) {
+    L.push('Recibes:');
+    f.rec.forEach(function (x) { addLine(L, x, 'de ' + nm(x[0]), false, det); });
+  }
+  L.push(f.net < 0 ? 'Saldo final: pagas ' + money(-f.net) : f.net > 0 ? 'Saldo final: recibes ' + money(f.net) : 'Saldo final: estás al día');
+  return L.join('\n');
+}
+function lines(arr, k) {
+  return arr.map(function (x) {
+    var key = x[0] + '>' + x[1], has = !!x[4], open = has && openLine === key;
+    var h = '<div class="ln' + (has ? ' tap' : '') + '"' + (has ? ' data-ln="' + key + '" role="button" tabindex="0" aria-expanded="' + open + '"' : '') + '><span>' + (k === 1 ? 'a ' : 'de ') + esc(nm(x[k])) + (x[3] ? ' <small>(' + esc(x[3]) + ')</small>' : '') + '</span><b>' + money(x[2]) + '</b></div>';
+    if (open) h += '<div class="dt">' + detailRows(x, k === 1).map(function (r) { return '<div>' + esc(r) + '</div>'; }).join('') + '</div>';
+    return h;
+  }).join('');
+}
+function renderPeople(st) {
+  if (!S.people.length || !S.expenses.length) {
+    $('pcards').innerHTML = '<div class="c mut">Agrega gastos para ver el resumen de cada persona.</div>';
+    return;
+  }
+  $('pcards').innerHTML = S.people.map(function (p, i) {
+    var f = pinfo(p.id, st), open = openId === p.id, none = !f.pay.length && !f.rec.length;
+    var sub = none ? 'Sin pagos pendientes'
+      : f.pay.length && f.rec.length ? 'Paga a ' + cnt(f.pay, 1) + ' · recibe de ' + cnt(f.rec, 0)
+      : f.pay.length ? 'Paga a ' + plural(cnt(f.pay, 1)) : 'Recibe de ' + plural(cnt(f.rec, 0));
+    var pill = '<span class="pill" style="background:' + (f.net > 0 ? '#00B88A' : f.net < 0 ? '#FF4D5E' : '#8A94A6') + '">' + (f.net === 0 ? 'Al día' : signed(f.net)) + '</span>';
+    var h = '<div class="pc' + (open ? ' open' : '') + '"><div class="ph" data-open="' + p.id + '" role="button" tabindex="0" aria-expanded="' + open + '">' +
+      '<div class="l"><span class="av" style="background:' + col(i) + '">' + ini(p.name) + '</span><div><p class="pn">' + esc(p.name) + '</p><p class="ps">' + sub + '</p></div></div>' +
+      '<div class="r">' + pill + (open ? UP : DOWN) + '</div></div>';
+    if (open) {
+      var nc = f.net < 0 ? ['#FFE9EB', '#8A1F2B', 'Paga ' + money(-f.net)] : f.net > 0 ? ['#DFF7EE', '#0B5E47', 'Recibe ' + money(f.net)] : ['#EEF1F5', '#3A4A66', 'Al día'];
+      h += '<div class="pd">';
+      if (f.pay.length) h += '<h4 style="color:#A8360B">Debe pagar</h4>' + lines(f.pay, 1);
+      if (f.rec.length) h += '<h4 style="color:#0B7A5C">Debe recibir</h4>' + lines(f.rec, 0);
+      h += '<div class="net" style="background:' + nc[0] + ';color:' + nc[1] + '"><span>Saldo final</span><span>' + nc[2] + '</span></div>' +
+        '<div class="msg"><small>Mensaje que se envía</small>' + esc(personMsg(p.id, st)) + '</div>' +
+        '<div class="pb"><button data-copy="' + p.id + '">Copiar</button><button class="g" data-wa="' + p.id + '">WhatsApp</button></div></div>';
+    }
+    return h + '</div>';
+  }).join('');
 }
 
 function renderPayer() {
@@ -266,9 +397,16 @@ function render() {
   }).join('') || '<span class="mut">Sin personas.</span>';
 
   var st = transfers(S.settle);
-  var HINTS = { min: 'Pocas transferencias: puede que pagues a alguien distinto de quien pagó tu parte.', pair: 'Cada par de personas resta lo que se deben entre sí y paga solo la diferencia.', exp: 'Cada uno le paga a quien pagó cada gasto, tal cual.' };
+  renderPeople(st);
+  $('ncount').textContent = st.length;
+  var HINTS = { min: 'Pocas transferencias: puede que pagues a alguien distinto de quien pagó tu parte.', pair: 'Cada par de personas resta lo que se deben entre sí y paga solo la diferencia. Toca un pago para ver el detalle.', exp: 'Cada uno le paga a quien pagó cada gasto, tal cual.' };
   Array.prototype.forEach.call($('smodes').children, function (bt) { bt.className = bt.getAttribute('data-s') === S.settle ? 'on' : ''; });
   $('shint').textContent = HINTS[S.settle];
+  var isPair = S.settle === 'pair';
+  $('detWrap').style.display = isPair ? 'flex' : 'none';
+  $('detHint').style.display = isPair ? 'block' : 'none';
+  $('detTog').checked = S.detail;
+  $('detHint').textContent = S.detail ? 'Cada pago del mensaje incluye su desglose por gasto.' : 'Cada pago del mensaje incluye solo el motivo corto.';
   $('pays').innerHTML = st.length ? st.map(function (x) {
     return '<div class="pay"><span>' + esc(nm(x[0])) + ' le paga a ' + esc(nm(x[1])) + (x[3] ? '<small>' + esc(x[3]) + '</small>' : '') + '</span><b>' + money(x[2]) + '</b></div>';
   }).join('') : '<div class="c mut">' + (S.expenses.length ? 'Todo saldado.' : 'Agrega gastos para ver quién paga a quién.') + '</div>';
@@ -290,7 +428,7 @@ function removePerson(id) {
   var used = S.expenses.some(function (e) { return e.payer === id || e.parts.indexOf(id) > -1; });
   if (used) return perr('No se puede quitar a ' + nm(id) + ': aparece en un gasto. Elimina o edita ese gasto primero.');
   S.people = S.people.filter(function (p) { return p.id !== id; });
-  sel.delete(id); perr(''); render();
+  sel.delete(id); if (openId === id) openId = null; perr(''); render();
 }
 
 function setMode(m) {
@@ -353,7 +491,7 @@ function summary() {
   st.forEach(function (x) { L.push('- ' + nm(x[0]) + ' le paga ' + money(x[2]) + ' a ' + nm(x[1]) + (x[3] ? ' (' + x[3] + ')' : '')); });
   return L.join('\n');
 }
-function copyText(txt) {
+function copyText(txt, btn) {
   function fb() {
     var ta = document.createElement('textarea');
     ta.value = txt; document.body.appendChild(ta); ta.select();
@@ -361,13 +499,27 @@ function copyText(txt) {
     document.body.removeChild(ta);
   }
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).catch(fb); else fb();
-  var bt = $('copy'); bt.textContent = 'Copiado';
-  setTimeout(function () { bt.textContent = 'Copiar resumen'; }, 1800);
+  var bt = btn || $('copy'), old = bt.textContent; bt.textContent = 'Copiado';
+  setTimeout(function () { bt.textContent = old; }, 1800);
 }
 
 $('gn').value = S.group;
 $('gn').oninput = function () { S.group = $('gn').value.trim(); save(); };
 $('smodes').onclick = function (e) { var m = e.target.getAttribute('data-s'); if (m) { S.settle = m; render(); } };
+$('pcards').onclick = function (e) {
+  var t = e.target, cp = t.closest('[data-copy]'), wa = t.closest('[data-wa]'), op = t.closest('[data-open]');
+  var st = transfers(S.settle);
+  if (cp) { copyText(personMsg(cp.getAttribute('data-copy'), st), cp); return; }
+  if (wa) { window.open('https://wa.me/?text=' + encodeURIComponent(personMsg(wa.getAttribute('data-wa'), st)), '_blank'); return; }
+  var ln = t.closest('[data-ln]');
+  if (ln) { var key = ln.getAttribute('data-ln'); openLine = openLine === key ? null : key; renderPeople(st); return; }
+  if (op) { var id = op.getAttribute('data-open'); openId = openId === id ? null : id; openLine = null; renderPeople(st); }
+};
+$('pcards').onkeydown = function (e) {
+  var op = e.target.closest && e.target.closest('[data-open],[data-ln]');
+  if (op && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); op.click(); }
+};
+$('detTog').onchange = function () { S.detail = $('detTog').checked; render(); };
 $('addp').onclick = addPerson;
 $('pn').onkeydown = function (e) { if (e.key === 'Enter') addPerson(); };
 $('chips').onclick = function (e) { var id = e.target.getAttribute('data-del'); if (id) removePerson(id); };
@@ -387,10 +539,10 @@ $('exps').onclick = function (e) {
   if (r && confirm('¿Eliminar este gasto?')) { S.expenses = S.expenses.filter(function (x) { return x.id !== r; }); if (edit === r) resetForm(); render(); }
   if (d) startEdit(d);
 };
-$('copy').onclick = function () { copyText(summary()); };
+$('copy').onclick = function () { copyText(summary(), $('copy')); };
 $('wa').onclick = function () { window.open('https://wa.me/?text=' + encodeURIComponent(summary()), '_blank'); };
 $('reset').onclick = function () {
-  if (confirm('¿Borrar personas y gastos? No se puede deshacer.')) { S = { people: [], expenses: [], group: '', settle: S.settle }; $('gn').value = ''; resetForm(); render(); }
+  if (confirm('¿Borrar personas y gastos? No se puede deshacer.')) { S = { people: [], expenses: [], group: '', settle: S.settle, detail: S.detail }; $('gn').value = ''; resetForm(); render(); }
 };
 
 render();
