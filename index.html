@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#DD4B14">
+<title>QuiénPaga</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="QuiénPaga">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#CFE8FF;color:#1B1340}
+.w{max-width:520px;margin:0 auto;padding-bottom:40px}
+header{background:#DD4B14;color:#fff;padding:18px 16px}
+header input{margin:10px 0 0}
+h1{margin:0;font-size:20px;font-weight:600}
+.tot{background:#FFD23F;border-radius:12px;padding:12px 14px;margin-top:12px;display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:#4A3500}
+.tot b{font-size:26px;color:#1B1340}
+section{padding:14px 14px 0}
+h2{font-size:14px;font-weight:600;color:#A8360B;margin:0 0 8px}
+.c{background:#fff;border-radius:12px;padding:12px}
+input[type=text],input:not([type]),select{width:100%;font-size:16px;padding:10px;border:1.5px solid #B9D6F2;border-radius:10px;background:#fff;color:#1B1340;margin-bottom:8px}
+input:focus,select:focus,button:focus-visible{outline:3px solid #FF3D8B;outline-offset:1px}
+button{font:inherit;font-size:15px;font-weight:600;border:0;border-radius:12px;padding:12px;cursor:pointer;color:#fff;background:#DD4B14}
+.full{width:100%}
+.g{background:#25D366;color:#08301A}
+.o{background:#5B6B85}
+.seg{display:flex;gap:6px;margin-bottom:8px}
+.seg button{flex:1;background:#FFE1D1;color:#A8360B;padding:10px}
+.seg button.on{background:#DD4B14;color:#fff}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
+.row label{display:flex;align-items:center;gap:8px;font-size:15px;flex:1}
+.row input[type=checkbox]{width:20px;height:20px;margin:0}
+.row .ex{width:110px;margin:0}
+.chip{display:inline-flex;align-items:center;gap:6px;color:#fff;border-radius:20px;padding:6px 10px;margin:0 6px 6px 0;font-size:14px;font-weight:600}
+.chip button{background:none;padding:0 0 0 2px;font-size:18px;line-height:1;border-radius:0}
+.add{display:flex;gap:8px;margin-top:6px}
+.add input{margin:0}
+.add button{flex:none;padding:10px 16px}
+.err{color:#D6203A;font-size:13px;font-weight:600;min-height:18px;margin:2px 0 6px}
+.mut{color:#5B6B85;font-size:14px}
+.e{border-bottom:1px solid #E6EEF8;padding:9px 0}
+.e:last-child{border:0}
+.e .t{display:flex;justify-content:space-between;font-weight:600}
+.e .s{font-size:12px;color:#5B4B8A;margin-top:2px}
+.e .b{margin-top:6px;display:flex;gap:8px}
+.e .b button{font-size:12px;padding:5px 10px;border-radius:8px}
+.e .b .d{background:#FF4D5E}
+.av{display:inline-flex;width:32px;height:32px;border-radius:50%;color:#fff;font-size:12px;font-weight:600;align-items:center;justify-content:center;margin-right:10px;vertical-align:middle}
+.pill{color:#fff;font-weight:600;font-size:13px;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.pay{background:#1B1340;color:#fff;border-radius:12px;padding:11px 14px;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.pay b{color:#FFD23F;white-space:nowrap}
+.acts{display:flex;gap:8px;padding:16px 14px 0}
+.acts button{flex:1}
+.rst{display:block;margin:18px auto 0;background:none;color:#A8360B;text-decoration:underline;font-weight:400;font-size:13px}
+</style>
+</head>
+<body>
+<div class="w">
+<header>
+  <h1>QuiénPaga</h1>
+  <input id="gn" type="text" maxlength="30" placeholder="Nombre del grupo, ej. Cena en Barranco" autocomplete="off" aria-label="Nombre del grupo">
+  <div class="tot"><span>Total del grupo</span><b id="tot">S/ 0.00</b></div>
+</header>
+
+<section>
+  <h2>Personas</h2>
+  <div class="c">
+    <div id="chips"></div>
+    <div class="add">
+      <input id="pn" type="text" maxlength="20" placeholder="Nombre, ej. Ana" autocomplete="off">
+      <button id="addp">Agregar</button>
+    </div>
+    <div class="err" id="perr"></div>
+  </div>
+</section>
+
+<section>
+  <h2 id="ftitle">Nuevo gasto</h2>
+  <div class="c">
+    <input id="desc" type="text" maxlength="40" placeholder="¿Qué se pagó? Ej. Cena" autocomplete="off">
+    <input id="amt" inputmode="decimal" placeholder="Monto en soles, ej. 100.00" autocomplete="off">
+    <select id="payer" aria-label="Quién pagó"></select>
+    <div class="seg">
+      <button id="m-equal" class="on">Partes iguales</button>
+      <button id="m-exact">Montos exactos</button>
+    </div>
+    <div id="parts"></div>
+    <div class="err" id="err"></div>
+    <button id="save" class="full">Agregar gasto</button>
+    <button id="cancel" class="full o" style="display:none;margin-top:8px">Cancelar edición</button>
+  </div>
+</section>
+
+<section>
+  <h2>Gastos</h2>
+  <div class="c" id="exps"></div>
+</section>
+
+<section>
+  <h2>Saldos</h2>
+  <div class="c" id="bals"></div>
+</section>
+
+<section>
+  <h2>Para saldar cuentas</h2>
+  <div id="pays"></div>
+</section>
+
+<div class="acts">
+  <button id="copy">Copiar resumen</button>
+  <button id="wa" class="g">WhatsApp</button>
+</div>
+<button id="reset" class="rst">Borrar todo y empezar de nuevo</button>
+</div>
+
+<script>
+var K = 'dividir-gastos-v1';
+var COLORS = ['#DD4B14', '#FF3D8B', '#0E9AA7', '#00B88A', '#2D8CFF', '#E0245E'];
+var S = { people: [], expenses: [] };
+var edit = null, mode = 'equal', sel = new Set(), ex = {};
+
+try { var raw = localStorage.getItem(K); if (raw) S = JSON.parse(raw); } catch (e) {}
+if (!S.people || !S.expenses) S = { people: [], expenses: [] };
+if (typeof S.group !== 'string') S.group = '';
+S.people.forEach(function (p) { sel.add(p.id); });
+
+function save() { try { localStorage.setItem(K, JSON.stringify(S)); } catch (e) {} }
+function $(id) { return document.getElementById(id); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function col(i) { return COLORS[i % COLORS.length]; }
+function ini(n) { return esc(n.trim().slice(0, 2).toUpperCase()); }
+function nm(id) { var p = S.people.find(function (x) { return x.id === id; }); return p ? p.name : '?'; }
+
+// Dinero: todo en céntimos (enteros) para evitar errores de decimales.
+function cents(v) {
+  v = String(v).trim().replace(',', '.');
+  if (!/^\d+(\.\d{1,2})?$/.test(v)) return null;
+  var p = v.split('.');
+  return parseInt(p[0], 10) * 100 + parseInt((p[1] || '') + '00'.slice((p[1] || '').length), 10) % 100;
+}
+function money(c) {
+  return 'S/ ' + (c / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function signed(c) { return (c < 0 ? '− ' : c > 0 ? '+ ' : '') + money(Math.abs(c)); }
+
+// Reparto: el sobrante de céntimos se asigna de a 1 a las primeras personas.
+function shares(e) {
+  var o = {};
+  if (e.mode === 'exact') { for (var k in e.exact) o[k] = e.exact[k]; return o; }
+  var n = e.parts.length, base = Math.floor(e.amount / n), rem = e.amount - base * n;
+  e.parts.forEach(function (id, i) { o[id] = base + (i < rem ? 1 : 0); });
+  return o;
+}
+function balances() {
+  var b = {};
+  S.people.forEach(function (p) { b[p.id] = 0; });
+  S.expenses.forEach(function (e) {
+    b[e.payer] += e.amount;
+    var s = shares(e);
+    for (var id in s) b[id] -= s[id];
+  });
+  return b;
+}
+// Liquidación: empareja al que más debe con al que más le deben.
+function settle(b) {
+  var d = [], c = [], out = [], i = 0, j = 0;
+  S.people.forEach(function (p) {
+    if (b[p.id] < 0) d.push([p.id, -b[p.id]]);
+    else if (b[p.id] > 0) c.push([p.id, b[p.id]]);
+  });
+  d.sort(function (x, y) { return y[1] - x[1]; });
+  c.sort(function (x, y) { return y[1] - x[1]; });
+  while (i < d.length && j < c.length) {
+    var m = Math.min(d[i][1], c[j][1]);
+    out.push([d[i][0], c[j][0], m]);
+    d[i][1] -= m; c[j][1] -= m;
+    if (!d[i][1]) i++;
+    if (!c[j][1]) j++;
+  }
+  return out;
+}
+
+function renderPayer() {
+  var cur = $('payer').value;
+  $('payer').innerHTML = S.people.map(function (p) {
+    return '<option value="' + p.id + '">Pagó ' + esc(p.name) + '</option>';
+  }).join('');
+  if (S.people.some(function (p) { return p.id === cur; })) $('payer').value = cur;
+}
+function renderParts() {
+  $('parts').innerHTML = S.people.map(function (p) {
+    var on = sel.has(p.id);
+    return '<div class="row"><label><input type="checkbox" data-p="' + p.id + '"' + (on ? ' checked' : '') + '> ' + esc(p.name) + '</label>' +
+      (mode === 'exact' && on ? '<input class="ex" data-e="' + p.id + '" inputmode="decimal" placeholder="0.00" value="' + esc(ex[p.id] || '') + '" aria-label="Monto de ' + esc(p.name) + '">' : '') + '</div>';
+  }).join('') || '<span class="mut">Agrega al menos 2 personas para empezar.</span>';
+}
+function render() {
+  var tot = S.expenses.reduce(function (a, e) { return a + e.amount; }, 0);
+  $('tot').textContent = money(tot);
+  $('chips').innerHTML = S.people.map(function (p, i) {
+    return '<span class="chip" style="background:' + col(i) + '">' + esc(p.name) + '<button data-del="' + p.id + '" aria-label="Quitar ' + esc(p.name) + '">×</button></span>';
+  }).join('') || '<span class="mut">Aún no hay personas.</span>';
+  renderPayer(); renderParts();
+
+  $('exps').innerHTML = S.expenses.length ? S.expenses.map(function (e) {
+    var s = shares(e);
+    var det = S.people.filter(function (p) { return s[p.id] !== undefined; }).map(function (p) {
+      return esc(p.name) + ' ' + (s[p.id] / 100).toFixed(2);
+    }).join(' · ');
+    return '<div class="e"><div class="t"><span>' + esc(e.desc) + '</span><span>' + money(e.amount) + '</span></div>' +
+      '<div class="s">Pagó ' + esc(nm(e.payer)) + ' · ' + det + '</div>' +
+      '<div class="b"><button data-edit="' + e.id + '">Editar</button><button class="d" data-rm="' + e.id + '">Eliminar</button></div></div>';
+  }).join('') : '<span class="mut">Sin gastos todavía. Agrega el primero arriba.</span>';
+
+  var b = balances();
+  $('bals').innerHTML = S.people.map(function (p, i) {
+    var v = b[p.id];
+    return '<div class="row"><span><span class="av" style="background:' + col(i) + '">' + ini(p.name) + '</span>' + esc(p.name) + '</span>' +
+      '<span class="pill" style="background:' + (v > 0 ? '#00B88A' : v < 0 ? '#FF4D5E' : '#8A94A6') + '">' + signed(v) + '</span></div>';
+  }).join('') || '<span class="mut">Sin personas.</span>';
+
+  var st = settle(b);
+  $('pays').innerHTML = st.length ? st.map(function (x) {
+    return '<div class="pay"><span>' + esc(nm(x[0])) + ' le paga a ' + esc(nm(x[1])) + '</span><b>' + money(x[2]) + '</b></div>';
+  }).join('') : '<div class="c mut">' + (S.expenses.length ? 'Todo saldado.' : 'Agrega gastos para ver quién paga a quién.') + '</div>';
+  save();
+}
+
+function perr(m) { $('perr').textContent = m || ''; }
+function err(m) { $('err').textContent = m || ''; return false; }
+
+function addPerson() {
+  var n = $('pn').value.trim();
+  if (!n) return perr('Escribe un nombre.');
+  if (S.people.some(function (p) { return p.name.toLowerCase() === n.toLowerCase(); })) return perr('Ese nombre ya está en el grupo.');
+  var p = { id: uid(), name: n };
+  S.people.push(p); sel.add(p.id);
+  $('pn').value = ''; perr(''); render();
+}
+function removePerson(id) {
+  var used = S.expenses.some(function (e) { return e.payer === id || e.parts.indexOf(id) > -1; });
+  if (used) return perr('No se puede quitar a ' + nm(id) + ': aparece en un gasto. Elimina o edita ese gasto primero.');
+  S.people = S.people.filter(function (p) { return p.id !== id; });
+  sel.delete(id); perr(''); render();
+}
+
+function setMode(m) {
+  mode = m;
+  $('m-equal').className = m === 'equal' ? 'on' : '';
+  $('m-exact').className = m === 'exact' ? 'on' : '';
+  renderParts();
+}
+function resetForm() {
+  edit = null; ex = {};
+  $('desc').value = ''; $('amt').value = '';
+  $('ftitle').textContent = 'Nuevo gasto';
+  $('save').textContent = 'Agregar gasto';
+  $('cancel').style.display = 'none';
+  sel = new Set(S.people.map(function (p) { return p.id; }));
+  setMode('equal'); err('');
+}
+
+function saveExpense() {
+  var d = $('desc').value.trim(), a = cents($('amt').value), payer = $('payer').value;
+  if (S.people.length < 2) return err('Agrega al menos 2 personas.');
+  if (!d) return err('Escribe qué se pagó.');
+  if (a === null || a <= 0) return err('Monto inválido. Usa un número mayor que 0 con máximo 2 decimales.');
+  var parts = S.people.filter(function (p) { return sel.has(p.id); }).map(function (p) { return p.id; });
+  if (!parts.length) return err('Elige entre quiénes se divide.');
+  var e = { id: edit || uid(), desc: d, amount: a, payer: payer, parts: parts, mode: mode };
+  if (mode === 'exact') {
+    var t = 0; e.exact = {};
+    for (var i = 0; i < parts.length; i++) {
+      var v = cents(ex[parts[i]] || '0');
+      if (v === null) return err('Monto inválido en ' + nm(parts[i]) + '.');
+      e.exact[parts[i]] = v; t += v;
+    }
+    if (t !== a) return err('Los montos suman ' + money(t) + ' y deben sumar ' + money(a) + '.');
+  }
+  if (edit) S.expenses = S.expenses.map(function (x) { return x.id === edit ? e : x; });
+  else S.expenses.push(e);
+  resetForm(); render();
+}
+function startEdit(id) {
+  var e = S.expenses.find(function (x) { return x.id === id; });
+  if (!e) return;
+  edit = id; sel = new Set(e.parts); ex = {};
+  if (e.exact) for (var k in e.exact) ex[k] = (e.exact[k] / 100).toFixed(2);
+  $('desc').value = e.desc; $('amt').value = (e.amount / 100).toFixed(2); $('payer').value = e.payer;
+  $('ftitle').textContent = 'Editando gasto';
+  $('save').textContent = 'Guardar cambios';
+  $('cancel').style.display = 'block';
+  setMode(e.mode || 'equal'); err('');
+  $('desc').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function summary() {
+  var b = balances(), st = settle(b);
+  var t = S.expenses.reduce(function (a, e) { return a + e.amount; }, 0);
+  var L = ['*' + (S.group || 'Resumen de gastos') + '*', 'Total: ' + money(t), ''];
+  S.expenses.forEach(function (e) { L.push('- ' + e.desc + ': ' + money(e.amount) + ' (pagó ' + nm(e.payer) + ')'); });
+  L.push('', '*Para saldar cuentas*');
+  if (!st.length) L.push('Todo saldado.');
+  st.forEach(function (x) { L.push('- ' + nm(x[0]) + ' le paga ' + money(x[2]) + ' a ' + nm(x[1])); });
+  return L.join('\n');
+}
+function copyText(txt) {
+  function fb() {
+    var ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).catch(fb); else fb();
+  var bt = $('copy'); bt.textContent = 'Copiado';
+  setTimeout(function () { bt.textContent = 'Copiar resumen'; }, 1800);
+}
+
+$('gn').value = S.group;
+$('gn').oninput = function () { S.group = $('gn').value.trim(); save(); };
+$('addp').onclick = addPerson;
+$('pn').onkeydown = function (e) { if (e.key === 'Enter') addPerson(); };
+$('chips').onclick = function (e) { var id = e.target.getAttribute('data-del'); if (id) removePerson(id); };
+$('m-equal').onclick = function () { setMode('equal'); };
+$('m-exact').onclick = function () { setMode('exact'); };
+$('parts').onchange = function (e) {
+  var id = e.target.getAttribute('data-p');
+  if (!id) return;
+  if (e.target.checked) sel.add(id); else sel.delete(id);
+  renderParts();
+};
+$('parts').oninput = function (e) { var id = e.target.getAttribute('data-e'); if (id) ex[id] = e.target.value; };
+$('save').onclick = saveExpense;
+$('cancel').onclick = function () { resetForm(); };
+$('exps').onclick = function (e) {
+  var r = e.target.getAttribute('data-rm'), d = e.target.getAttribute('data-edit');
+  if (r && confirm('¿Eliminar este gasto?')) { S.expenses = S.expenses.filter(function (x) { return x.id !== r; }); if (edit === r) resetForm(); render(); }
+  if (d) startEdit(d);
+};
+$('copy').onclick = function () { copyText(summary()); };
+$('wa').onclick = function () { window.open('https://wa.me/?text=' + encodeURIComponent(summary()), '_blank'); };
+$('reset').onclick = function () {
+  if (confirm('¿Borrar personas y gastos? No se puede deshacer.')) { S = { people: [], expenses: [], group: '' }; $('gn').value = ''; resetForm(); render(); }
+};
+
+render();
+</script>
+</body>
+</html>
